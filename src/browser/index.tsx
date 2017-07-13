@@ -5,6 +5,7 @@ import {
 
 import 'font-awesome/css/font-awesome.min.css';
 import '@jupyterlab/theming/style/index.css';
+import './css/main.css'
 
 import {
     ElectronJupyterLab as app
@@ -13,6 +14,13 @@ import {
 import {
     JupyterAppChannels as Channels
 } from '../ipc';
+
+import {
+    SplashScreen
+} from './electron-launcher';
+
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 
 let ipcRenderer = (window as any).require('electron').ipcRenderer;
 import extensions from './extensions'
@@ -24,19 +32,20 @@ function main() : void {
     let devMode : string  = PageConfig.getOption('devMode') || 'false';
     let settingsDir : string = PageConfig.getOption('settingsDir') || '';
     let assetsDir : string = PageConfig.getOption('assetsDir') || '';
+    let labReady = false;
     
     if (version[0] === 'v') {
         version = version.slice(1);
     }
 
-    // Promise for animation listener
-    let promise : Promise<string>;
-    document.getElementById('moon1').addEventListener('animationiteration', () => {
-        promise.then( (animation) => {
-            document.getElementById('universe').style.animation = animation;
-        })
-    });
+    function iterationDone() {
+        return !labReady;
+    }
 
+    ReactDOM.render(
+        <SplashScreen iterationDone={iterationDone} />,
+        document.getElementById('root')
+    );
 
     let lab = new app({
         namespace: namespace,
@@ -70,15 +79,13 @@ function main() : void {
         // Set baseUrl
         PageConfig.setOption("baseUrl", data.baseUrl);
         // Start lab and fade splash
-        promise = new Promise((resolve, reject) => {
-            try{
-                lab.start({ "ignorePlugins": ignorePlugins });
-                resolve("fade .4s linear 0s forwards");
-            }
-            catch (e){
-                reject(e);
-            }
-        });
+        labReady = true;
+        try{
+            lab.start({ "ignorePlugins": ignorePlugins });
+        }
+        catch (e){
+            console.log(e);
+        }
     });
     ipcRenderer.send(Channels.RENDER_PROCESS_READY);
 }
